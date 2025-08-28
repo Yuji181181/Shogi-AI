@@ -458,3 +458,205 @@ def convert_usi_to_japanese(move_usi, board):
     except Exception as e:
         print(f"日本語変換エラー: {e}")
         return move_usi  # エラー時はUSI記法をそのまま返す
+
+
+async def generate_ai_commentary(board_state, move_usi, move_number, player):
+    """指定された手に対するAI解説を生成"""
+    if not client:
+        return f"{move_number}手目の手です。詳細な解説を表示するにはOpenAI APIキーを設定してください。"
+
+    try:
+        # 現在の盤面情報
+        board = shogi.Board()
+        for i in range(move_number - 1):
+            if i < len(SAMPLE_GAME_DATA["moves"]):
+                board.push_usi(SAMPLE_GAME_DATA["moves"][i]["moveUsi"])
+
+        # 手の詳細情報を取得
+        move = shogi.Move.from_usi(move_usi)
+        piece = board.piece_at(move.from_square) if move.from_square else None
+
+        # 手の日本語表記を生成
+        move_japanese = convert_usi_to_japanese(move_usi, board)
+
+        # プロンプトを作成
+        prompt = f"""
+あなたは将棋のプロ解説者です。以下の手について、初心者にもわかりやすい解説をしてください。
+
+手数: {move_number}手目
+手番: {player}
+指し手(USI): {move_usi}
+指し手(日本語): {move_japanese}
+駒: {piece.piece_type if piece else '不明'}
+
+以下の点を含めて100文字程度で解説してください：
+1. この手の狙いや意図
+2. 局面への影響
+3. 将棋の基本的なセオリーとの関連
+
+解説は敬語を使わず、親しみやすい口調でお願いします。
+駒の位置は「{move_japanese}」のように日本語で表記してください。
+将棋の座標系では、1筋から9筋（左から右）、1段から9段（上から下）で表現されます。
+"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "あなたは将棋の解説者です。"},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=200,
+            temperature=0.7,
+        )
+
+        return response.choices[0].message.content.strip()
+
+    except Exception as e:
+        print(f"AI解説生成エラー: {e}")
+        return f"{move_number}手目の手です。AI解説の生成中にエラーが発生しました。"
+
+
+async def generate_ai_move(board, move_number, player_type):
+    """AI（GPT）による次の手を生成"""
+    if not client:
+        # APIキーがない場合は定跡的な手を返す
+        legal_moves = list(board.legal_moves)
+        return random.choice(legal_moves) if legal_moves else None
+
+    try:
+        # 現在の盤面状況を文字列で説明
+        legal_moves = list(board.legal_moves)
+        legal_moves_usi = [move.usi() for move in legal_moves[:10]]  # 最初の10手のみ
+
+        prompt = f"""
+あなたは{player_type}の将棋AIです。現在{move_number}手目を指す番です。
+
+以下の合法手の中から最適な手を1つ選んでください：
+{', '.join(legal_moves_usi)}
+
+選択する手のUSI記法のみを回答してください（例：7g7f）
+説明は不要です。
+"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": f"あなたは{player_type}の将棋AIです。"},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=10,
+            temperature=0.5,
+        )
+
+        ai_move_usi = response.choices[0].message.content.strip()
+
+        # 生成された手が合法手かチェック
+        try:
+            ai_move = shogi.Move.from_usi(ai_move_usi)
+            if ai_move in legal_moves:
+                return ai_move
+        except:
+            pass
+
+        # 不正な手の場合はランダムに選択
+        return random.choice(legal_moves) if legal_moves else None
+
+    except Exception as e:
+        print(f"AI手生成エラー: {e}")
+        legal_moves = list(board.legal_moves)
+        return random.choice(legal_moves) if legal_moves else None
+
+
+async def generate_ai_game(max_moves=30):
+    """AI同士の対局を生成"""
+    try:
+        game_id = f"20250827-{uuid.uuid4().hex[:8]}"
+
+        # プレイヤー設定
+        players = {"sente": "宗太郎君 AI", "gote": "四五六君 AI"}
+
+        # AIが有効でない場合はサンプルデータを返す
+        if not client:
+            print("AIクライアントが無効のため、サンプルデータを使用します")
+            print(f"Returning sample data with game_id: {game_id}")
+            sample_data = SAMPLE_GAME_DATA.copy()
+            sample_data["gameId"] = game_id
+
+            # 要求された手数に合わせてサンプルデータを調整
+            if max_moves < len(sample_data["moves"]):
+                sample_data["moves"] = sample_data["moves"][:max_moves]
+                sample_data["result"] = ""
+                sample_data["winReason"] = ""
+
+            return sample_data
+
+        # AI対局を生成
+        board = shogi.Board()
+        moves = []
+
+        print(f"AI対局を生成中... (最大{max_moves}手)")
+
+        for move_number in range(1, max_moves + 1):
+            if board.is_game_over():
+                break
+
+            # 現在の手番
+            current_player = (
+                players["sente"] if board.turn == shogi.BLACK else players["gote"]
+            )
+            player_type = "先手" if board.turn == shogi.BLACK else "後手"
+
+            print(f"  {move_number}手目を生成中... ({player_type})")
+
+            # AIが手を生成
+            ai_move = await generate_ai_move(board, move_number, current_player)
+
+            if ai_move is None:
+                print(f"  {move_number}手目: 合法手が見つかりません")
+                break
+
+            # 手を適用
+            move_usi = ai_move.usi()
+            board.push(ai_move)
+
+            # AI解説を生成
+            commentary = await generate_ai_commentary(
+                board, move_usi, move_number, player_type
+            )
+
+            # 手の日本語表記を生成
+            move_notation = convert_usi_to_japanese(move_usi, board)
+
+            # 手を記録
+            moves.append(
+                {
+                    "moveNumber": move_number,
+                    "moveUsi": move_usi,
+                    "moveNotation": move_notation,
+                    "commentary": commentary,
+                }
+            )
+
+            print(f"  {move_number}手目: {move_usi} - {commentary[:30]}...")
+
+            # 少し待機（API制限対策）
+            await asyncio.sleep(0.5)
+
+        game_data = {
+            "gameId": game_id,
+            "sente": players["sente"],
+            "gote": players["gote"],
+            "moves": moves,
+            "result": "",
+            "winReason": "",
+        }
+
+        print(f"AI対局生成完了: {len(moves)}手")
+        return game_data
+
+    except Exception as e:
+        print(f"AI対局生成エラー: {e}")
+        # エラーの場合はサンプルデータを返す
+        sample_data = SAMPLE_GAME_DATA.copy()
+        sample_data["gameId"] = f"20250827-{uuid.uuid4().hex[:8]}"
+        return sample_data
