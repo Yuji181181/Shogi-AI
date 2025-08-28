@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIの将棋トレーニング</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>AIの将棋トレーニング</h1>
+        <p>AI同士の対局をリアルタイムで解説付きで観戦できます</p>
+      </header>
+
+      <main>
+        <div class="game-setup">
+          <div class="players">
+            <div class="player sente">
+              <h3>先手</h3>
+              <div class="player-name">宗太郎君 AI</div>
+              <div class="player-avatar">🤖</div>
+            </div>
+
+            <div class="vs">VS</div>
+
+            <div class="player gote">
+              <h3>後手</h3>
+              <div class="player-name">四五六君 AI</div>
+              <div class="player-avatar">🤖</div>
+            </div>
+          </div>
+
+          <div class="game-controls">
+            <div class="move-settings">
+              <label for="maxMovesSelect">最大手数:</label>
+              <select id="maxMovesSelect" class="moves-select">
+                <option value="5">5手</option>
+                <option value="20">20手</option>
+                <option value="30" selected>30手</option>
+                <option value="50">50手</option>
+                <option value="80">80手</option>
+                <option value="100">100手</option>
+                <option value="150">150手</option>
+                <option value="200">200手</option>
+              </select>
+            </div>
+            <button id="startGameBtn" class="start-btn">対局開始</button>
+            <div
+              id="loadingMessage"
+              class="loading-message"
+              style="display: none"
+            >
+              <div class="spinner"></div>
+              <p>
+                AIが対局を生成中です...<br />
+                <small>手数が多いほど時間がかかります</small>
+              </p>
+            </div>
+            <div
+              id="errorMessage"
+              class="error-message"
+              style="display: none"
+            ></div>
+          </div>
+
+          <div class="game-info">
+            <h3>対局条件</h3>
+            <ul>
+              <li>最大手数: <span id="selectedMoves">30手</span></li>
+              <li>持ち時間: 無制限</li>
+              <li>AI解説: 有効</li>
+              <li>棋譜保存: 有効</li>
+            </ul>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; 2025 AIの将棋トレーニング</p>
+      </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  </body>
+</html>
