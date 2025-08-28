@@ -660,3 +660,140 @@ async def generate_ai_game(max_moves=30):
         sample_data = SAMPLE_GAME_DATA.copy()
         sample_data["gameId"] = f"20250827-{uuid.uuid4().hex[:8]}"
         return sample_data
+
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/api/start_game", methods=["POST"])
+def start_game():
+    """新しい対局を開始"""
+    try:
+        # リクエストから手数パラメータを取得
+        data = request.get_json() or {}
+        max_moves = data.get("maxMoves", 30)  # デフォルト30手
+
+        # 手数の範囲チェック
+        if not isinstance(max_moves, int) or max_moves < 1 or max_moves > 200:
+            max_moves = 30
+
+        print(f"対局開始: 最大{max_moves}手")
+
+        # AI対局を非同期で生成
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            print(f"Generating AI game with max_moves: {max_moves}")
+            game_data = loop.run_until_complete(generate_ai_game(max_moves))
+            # 生成されたゲームデータを保存
+            generated_games[game_data["gameId"]] = game_data
+            print(f"Game {game_data['gameId']} saved to memory")
+            print(f"Generated games count: {len(generated_games)}")
+        finally:
+            loop.close()
+
+        return jsonify({"success": True, "gameData": game_data})
+    except Exception as first_error:
+        print(f"対局生成エラー: {first_error}")
+        import traceback
+
+        traceback.print_exc()
+        try:
+            # エラーの場合はサンプルデータを返す
+            sample_data = SAMPLE_GAME_DATA.copy()
+            error_game_id = f"20250827-{uuid.uuid4().hex[:8]}"
+            sample_data["gameId"] = error_game_id
+
+            # 要求された手数に合わせてサンプルデータを調整
+            if max_moves < len(sample_data["moves"]):
+                sample_data["moves"] = sample_data["moves"][:max_moves]
+                sample_data["result"] = ""
+                sample_data["winReason"] = ""
+
+            # サンプルデータも保存
+            generated_games[error_game_id] = sample_data
+            print(f"Error fallback: Using sample data with game ID {error_game_id}")
+            return jsonify(
+                {
+                    "success": True,
+                    "gameData": sample_data,
+                    "note": "サンプルデータを使用",
+                }
+            )
+        except Exception as second_error:
+            return jsonify({"success": False, "error": str(second_error)}), 500
+
+
+@app.route("/api/board_state/<game_id>/<int:move_number>")
+def get_board_state(game_id, move_number):
+    """指定した手数の盤面状態と持ち駒を取得"""
+    try:
+        print(f"Getting board state for game {game_id}, move {move_number}")
+        print(f"Available games in memory: {list(generated_games.keys())}")
+
+        # 保存されたゲームデータを取得
+        if game_id in generated_games:
+            game_data = generated_games[game_id]
+            print(f"Using generated game data for {game_id}")
+            print(f"Game data has {len(game_data.get('moves', []))} moves")
+        else:
+            # フォールバック: サンプルデータを使用
+            game_data = SAMPLE_GAME_DATA
+            print(f"Game {game_id} not found, using sample data")
+            print(f"Sample data has {len(game_data.get('moves', []))} moves")
+
+        # 新しいゲームインスタンスを作成
+        game = ShogiGame()
+
+        # 指定した手数まで指し手を適用
+        for i, move_data in enumerate(game_data["moves"]):
+            if i < move_number:
+                try:
+                    print(f"Applying move {i+1}: {move_data['moveUsi']}")
+                    game.board.push_usi(move_data["moveUsi"])
+                    game.moves.append(move_data["moveUsi"])
+                except Exception as e:
+                    print(f"Error applying move {i+1}: {e}")
+                    break
+
+        # 盤面の文字列表現を取得（日本語で）
+        try:
+            board_str = game.board_to_japanese_string(game.board)
+            print("Board string generated successfully")
+        except Exception as e:
+            print(f"Error generating board string: {e}")
+            board_str = "盤面表示エラー"
+
+        # 持ち駒を取得
+        try:
+            captured_pieces = game.get_captured_pieces(move_number)
+            print("Captured pieces retrieved successfully")
+        except Exception as e:
+            print(f"Error getting captured pieces: {e}")
+            captured_pieces = {"sente": {}, "gote": {}}
+
+        return jsonify(
+            {
+                "success": True,
+                "boardState": board_str,
+                "capturedPieces": captured_pieces,
+                "currentTurn": "先手" if game.board.turn == shogi.BLACK else "後手",
+            }
+        )
+    except Exception as e:
+        print(f"Error in get_board_state: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/viewer")
+def viewer():
+    return render_template("viewer.html")
+
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=8080)
