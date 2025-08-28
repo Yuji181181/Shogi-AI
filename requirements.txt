@@ -1,0 +1,29 @@
+# 将棋AI対局アプリ - 必要なライブラリ
+
+# Webアプリケーションフレームワーク
+Flask==3.0.0
+
+# OpenAI API クライアント
+openai==1.101.0
+
+# 将棋ライブラリ
+python-shogi==1.1.1
+
+# 環境変数管理
+python-dotenv==1.0.0
+
+# 依存関係として自動的にインストールされるライブラリ
+# （通常は明示的に指定する必要はありませんが、参考として記載）
+# Jinja2==3.1.6           # Flaskのテンプレートエンジン
+# Werkzeug==3.1.3         # FlaskのWSGIユーティリティ
+# click==8.2.1             # Flaskのコマンドラインインターフェース
+# MarkupSafe==3.1.6        # Jinja2の依存関係
+# itsdangerous==2.2.0      # Flaskのセッション管理
+# blinker==1.9.0           # Flaskのシグナル機能
+# pydantic==2.11.7         # OpenAIクライアントの依存関係
+# httpx==0.28.1            # OpenAIクライアントのHTTPライブラリ
+# anyio==4.10.0            # 非同期I/O（OpenAI依存）
+# certifi==2025.8.3        # SSL証明書（HTTP通信用）
+# idna==3.10               # 国際化ドメイン名（HTTP通信用）
+# sniffio==1.3.1           # 非同期ライブラリ検出
+# typing_extensions==4.15.0 # 型ヒント拡張
