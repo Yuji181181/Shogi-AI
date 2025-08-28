@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>棋譜ビューア - AIの将棋トレーニング</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>AIの将棋トレーニング</h1>
+        <div class="game-header">
+          <span class="game-id"
+            >対局ID: <span id="gameId">読み込み中...</span></span
+          >
+          <span class="players-info">
+            <span id="sentePlayer">先手</span> vs
+            <span id="gotePlayer">後手</span>
+          </span>
+        </div>
+      </header>
+
+      <main class="viewer-main">
+        <!-- 将棋盤エリア -->
+        <div class="board-section">
+          <div class="captured-pieces gote-captured">
+            <h4>後手の持ち駒</h4>
+            <div id="goteCaptured" class="captured-display"></div>
+          </div>
+
+          <div class="shogi-board">
+            <div id="boardDisplay" class="board-display">
+              <pre id="boardText">盤面を読み込み中...</pre>
+            </div>
+          </div>
+
+          <div class="captured-pieces sente-captured">
+            <h4>先手の持ち駒</h4>
+            <div id="senteCaptured" class="captured-display"></div>
+          </div>
+
+          <div class="board-info">
+            <div class="current-move">
+              <span>現在: <span id="currentMoveNumber">0</span>手目</span>
+              <span id="currentTurn" class="turn-indicator">開始前</span>
+            </div>
+            <div id="gameResult" class="game-result" style="display: none">
+              <span class="result-text"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 棋譜・解説エリア -->
+        <div class="moves-section">
+          <div class="moves-header">
+            <h3>棋譜</h3>
+            <div class="move-controls">
+              <button id="prevBtn" class="control-btn">← 前の手</button>
+              <button id="nextBtn" class="control-btn">次の手 →</button>
+              <button id="firstBtn" class="control-btn">最初</button>
+              <button id="lastBtn" class="control-btn">最終</button>
+            </div>
+          </div>
+
+          <div class="moves-container">
+            <div class="moves-list">
+              <div id="movesList" class="moves-table">
+                <!-- 棋譜リストがここに表示される -->
+              </div>
+            </div>
+
+            <div class="commentary-section">
+              <h4>AI解説</h4>
+              <div id="commentaryDisplay" class="commentary-text">
+                手を選択すると解説が表示されます
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <div class="viewer-controls">
+        <button id="backToHomeBtn" class="back-btn">← ホームに戻る</button>
+        <button id="downloadKifuBtn" class="download-btn">
+          棋譜をダウンロード
+        </button>
+      </div>
+
+      <footer>
+        <p>&copy; 2025 AIの将棋トレーニング</p>
+      </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/viewer.js') }}"></script>
+  </body>
+</html>
