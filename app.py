@@ -248,3 +248,213 @@ SAMPLE_GAME_DATA = {
     "result": "",
     "winReason": "",
 }
+
+
+class ShogiGame:
+    def __init__(self):
+        self.board = shogi.Board()
+        self.moves = []
+        self.commentaries = []
+
+    def board_to_japanese_string(self, board):
+        """盤面を日本語の漢字で表示する（色分け用マーカー付き）"""
+        try:
+            print("テキスト盤面生成を開始")  # デバッグ用
+            # 通常のテキスト盤面を生成
+            lines = []
+
+            # 各段を処理（枠線なし）
+            rank_names = ["一", "二", "三", "四", "五", "六", "七", "八", "九"]
+
+            for rank in range(9):
+                line = ""
+
+                for file in range(9):
+                    try:
+                        # convert_usi_to_japanese関数と同じ座標系を使用
+                        # 将棋盤面は9筋から1筋（右から左）なので、fileを逆順で表示
+                        # USI座標: to_square = rank * 9 + file (0-80)
+                        # 日本語座標: to_file = (to_square % 9) + 1, to_rank = (to_square // 9) + 1
+                        display_file = 8 - file  # 9筋から1筋の順番で表示
+                        square_index = rank * 9 + display_file
+                        piece = board.piece_at(square_index)
+
+                        if piece is None:
+                            line += "・"
+                        else:
+                            # 駒の日本語名を取得
+                            piece_name = self.get_piece_japanese_name(piece)
+                            # 後手の駒には特殊マーカーを付ける（python-shogiではWHITEが後手）
+                            try:
+                                is_gote = piece.color == shogi.WHITE
+                            except:
+                                is_gote = str(piece).isupper()
+
+                            if is_gote:
+                                # 後手の駒にマーカーを付ける（後でCSSで置換）
+                                line += f"◆{piece_name}◆"
+                            else:
+                                line += piece_name
+
+                    except Exception as e:
+                        print(f"駒処理エラー at rank={rank}, file={file}: {e}")
+                        line += "？"
+
+                lines.append(line)
+
+            # テキストとして結合
+            result = "\n".join(lines)
+            print("テキスト盤面生成成功")  # デバッグ用
+            return result
+
+        except Exception as e:
+            print(f"Error in board_to_japanese_string: {e}")
+            import traceback
+
+            traceback.print_exc()
+            # エラーの場合は簡単な文字列置換に戻す
+            try:
+                board_str = str(board)
+                # 先手の駒（スペース付きとスペースなし両方）
+                board_str = board_str.replace(" P ", " 歩 ").replace("P", "歩")
+                board_str = board_str.replace(" L ", " 香 ").replace("L", "香")
+                board_str = board_str.replace(" N ", " 桂 ").replace("N", "桂")
+                board_str = board_str.replace(" S ", " 銀 ").replace("S", "銀")
+                board_str = board_str.replace(" G ", " 金 ").replace("G", "金")
+                board_str = board_str.replace(" B ", " 角 ").replace("B", "角")
+                board_str = board_str.replace(" R ", " 飛 ").replace("R", "飛")
+                board_str = board_str.replace(" K ", " 玉 ").replace("K", "玉")
+                # 後手の駒（スペース付きとスペースなし両方）
+                board_str = board_str.replace(" p ", " 歩 ").replace("p", "歩")
+                board_str = board_str.replace(" l ", " 香 ").replace("l", "香")
+                board_str = board_str.replace(" n ", " 桂 ").replace("n", "桂")
+                board_str = board_str.replace(" s ", " 銀 ").replace("s", "銀")
+                board_str = board_str.replace(" g ", " 金 ").replace("g", "金")
+                board_str = board_str.replace(" b ", " 角 ").replace("b", "角")
+                board_str = board_str.replace(" r ", " 飛 ").replace("r", "飛")
+                board_str = board_str.replace(" k ", " 玉 ").replace("k", "玉")
+                # 空きマス
+                board_str = board_str.replace(" . ", " ・ ").replace(".", "・")
+                return board_str
+            except:
+                return f"盤面表示エラー: {e}"
+
+    def get_piece_japanese_name(self, piece):
+        """駒の日本語名を取得"""
+        try:
+            # 基本的な駒の種類定義
+            piece_names = {
+                shogi.PAWN: "歩",
+                shogi.LANCE: "香",
+                shogi.KNIGHT: "桂",
+                shogi.SILVER: "銀",
+                shogi.GOLD: "金",
+                shogi.BISHOP: "角",
+                shogi.ROOK: "飛",
+                shogi.KING: "玉",
+            }
+
+            # 成駒の種類定義（python-shogiでは元の駒種+8）
+            promoted_piece_names = {
+                shogi.PAWN + 8: "と",  # 成歩 = と金
+                shogi.LANCE + 8: "成香",
+                shogi.KNIGHT + 8: "成桂",
+                shogi.SILVER + 8: "成銀",
+                shogi.BISHOP + 8: "馬",  # 成角 = 龍馬
+                shogi.ROOK + 8: "龍",  # 成飛 = 龍王
+            }
+
+            # まず成駒かどうか確認
+            if piece.piece_type in promoted_piece_names:
+                return promoted_piece_names[piece.piece_type]
+
+            # 普通の駒の場合
+            elif piece.piece_type in piece_names:
+                return piece_names[piece.piece_type]
+
+            # どちらでもない場合（エラー）
+            else:
+                print(f"Debug: Unknown piece type: {piece.piece_type}")
+                return "？"
+
+        except Exception as e:
+            print(f"駒名取得エラー: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return "？"
+
+    def get_board_state(self, move_number=0):
+        """指定した手数での盤面状態を取得"""
+        temp_board = shogi.Board()
+        for i in range(min(move_number, len(self.moves))):
+            temp_board.push_usi(self.moves[i])
+        return temp_board
+
+    def get_captured_pieces(self, move_number=0):
+        """指定した手数での持ち駒を取得"""
+        temp_board = self.get_board_state(move_number)
+
+        sente_pieces = {}
+        gote_pieces = {}
+
+        # 先手の持ち駒（python-shogiではBLACKが先手）
+        for piece_type in shogi.PIECE_TYPES:
+            count = temp_board.pieces_in_hand[shogi.BLACK][piece_type]
+            if count > 0:
+                piece_name = shogi.PIECE_JAPANESE_SYMBOLS[piece_type]
+                sente_pieces[piece_name] = count
+
+        # 後手の持ち駒（python-shogiではWHITEが後手）
+        for piece_type in shogi.PIECE_TYPES:
+            count = temp_board.pieces_in_hand[shogi.WHITE][piece_type]
+            if count > 0:
+                piece_name = shogi.PIECE_JAPANESE_SYMBOLS[piece_type]
+                gote_pieces[piece_name] = count
+
+        return {"sente": sente_pieces, "gote": gote_pieces}
+
+
+def convert_usi_to_japanese(move_usi, board):
+    """USI記法を日本語表記に簡易変換"""
+    try:
+        move = shogi.Move.from_usi(move_usi)
+
+        # 移動先の座標を日本語に変換
+        to_square = move.to_square
+        to_file = (to_square % 9) + 1  # 1筋から9筋（USI座標系を将棋座標系に変換）
+        to_rank = (to_square // 9) + 1  # 1段から9段
+
+        # 数字を漢数字に変換
+        kansuji = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
+        file_str = str(to_file)
+        rank_str = kansuji[to_rank]
+
+        # 駒の種類を取得
+        if move.from_square is not None:
+            # 盤上からの移動
+            piece = board.piece_at(move.from_square)
+            if piece:
+                piece_name = ShogiGame().get_piece_japanese_name(piece)
+                return f"{file_str}{rank_str}{piece_name}"
+        else:
+            # 持ち駒からの打ち
+            piece_type = move.drop_piece_type
+            if piece_type:
+                piece_names = {
+                    shogi.PAWN: "歩",
+                    shogi.LANCE: "香",
+                    shogi.KNIGHT: "桂",
+                    shogi.SILVER: "銀",
+                    shogi.GOLD: "金",
+                    shogi.BISHOP: "角",
+                    shogi.ROOK: "飛",
+                }
+                piece_name = piece_names.get(piece_type, "？")
+                return f"{file_str}{rank_str}{piece_name}打"
+
+        return f"{file_str}{rank_str}"
+
+    except Exception as e:
+        print(f"日本語変換エラー: {e}")
+        return move_usi  # エラー時はUSI記法をそのまま返す
